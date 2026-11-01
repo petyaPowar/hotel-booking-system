@@ -1,0 +1,95 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: booking-service
+  cloud:
+    loadbalancer:
+      cache:
+        ttl: 5s
+  datasource:
+    url: jdbc:h2:mem:bookingdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+  web:
+    locale: en
+    locale-resolver: fixed
+
+eureka:
+  client:
+    registry-fetch-interval-seconds: 5
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:hotel-booking-dev-secret-key-change-me-0123456789}
+    ttl: PT1H
+    issuer: hotel-booking
+  seed:
+    enabled: true
+  hotel-client:
+    base-url: http://hotel-service
+    connect-timeout: 2s
+    read-timeout: 3s
+
+resilience4j:
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+    instances:
+      hotelService:
+        base-config: default
+      hotelRelease:
+        base-config: default
+  circuitbreaker:
+    instances:
+      hotelService:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        automatic-transition-from-open-to-half-open-enabled: true
+        permitted-number-of-calls-in-half-open-state: 5
+        record-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: OFF
+  file:
+    name: logs/${spring.application.name}.log
+  structured:
+    format:
+      file: ecs
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{bookingId:-}] "

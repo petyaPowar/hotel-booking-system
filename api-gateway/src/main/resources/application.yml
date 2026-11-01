@@ -1,0 +1,67 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  reactor:
+    context-propagation: auto
+  cloud:
+    loadbalancer:
+      cache:
+        ttl: 5s
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 35s
+          routes:
+            - id: internal-room-endpoints
+              uri: no://op
+              predicates:
+                - Path=/api/rooms/*/confirm-availability,/api/rooms/*/release
+              filters:
+                - NotPublished
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/bookings/**
+              filters:
+                - StripPrefix=2
+            - id: hotel-service
+              uri: lb://hotel-service
+              predicates:
+                - Path=/api/hotels/**,/api/rooms/**
+
+eureka:
+  client:
+    registry-fetch-interval-seconds: 5
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:hotel-booking-dev-secret-key-change-me-0123456789}
+    issuer: hotel-booking
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  file:
+    name: logs/${spring.application.name}.log
+  structured:
+    format:
+      file: ecs
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "

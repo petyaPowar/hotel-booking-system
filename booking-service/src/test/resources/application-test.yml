@@ -1,0 +1,20 @@
+eureka:
+  client:
+    enabled: false
+
+app:
+  seed:
+    enabled: false
+  hotel-client:
+    connect-timeout: 500ms
+    read-timeout: 500ms
+
+resilience4j:
+  retry:
+    configs:
+      default:
+        wait-duration: 10ms
+
+logging:
+  file:
+    name: ""
